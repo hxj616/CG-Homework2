@@ -153,8 +153,8 @@ unsigned int VAOsnow, VBOsnow, EBOsnow;
 Shader myShader;
 Texture penguinTexture1, penguinTexture2, snowTexture1, snowTexture2;
 
-int currentPenguinTexture = 1;
-int currentSnowTexture = 1;
+int currentPenguinTexture = 2;
+int currentSnowTexture = 2;
 
 float lightIntensity = 1.0f;
 
@@ -311,25 +311,101 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
 	glViewport(0, 0, width, height);
 }
+bool leftMousePressed = false;
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
-	// Sets the mouse-button callback for the current window.	
+	// Sets the mouse-button callback for the current window.
+	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
+		firstMouse = true;
+	if (button == GLFW_MOUSE_BUTTON_LEFT) {
+		if (action == GLFW_PRESS)
+			leftMousePressed = true;
+		else if (action == GLFW_RELEASE)
+			leftMousePressed = false;
+	}
 }
 
 void cursor_position_callback(GLFWwindow* window, double x, double y)
 {
 	// Sets the cursor position callback for the current window
+	if (!leftMousePressed)
+		return;
+	if (firstMouse) {
+		lastX = x;
+		lastY = y;
+		firstMouse = false;
+	}
+	float xoffset = x - lastX;
+	float yoffset = lastY - y;
+	lastX = x;
+	lastY = y;
+
+	float sensitivity = 0.1f;
+	xoffset *= sensitivity;
+	yoffset *= sensitivity;
+
+	yaw += xoffset;
+	pitch += yoffset;
+	if (pitch > 89.0f)
+		pitch = 89.0f;
+	if (pitch < -89.0f)
+		pitch = -89.0f;
+
+	glm::vec3 front;
+	front.x = cos(glm::radians(pitch)) * cos(glm::radians(yaw));
+	front.y = sin(glm::radians(pitch));
+	front.z = cos(glm::radians(pitch)) * sin(glm::radians(yaw));
+	cameraFront = glm::normalize(front);
 }
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
 	// Sets the scoll callback for the current window.
 }
-
+const float moveSpeed = 0.4f;
+const float turnAngle = 3.0f;
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
 	// Sets the Keyboard callback for the current window.
+	if (action == GLFW_PRESS || action == GLFW_REPEAT) {
+		if (key == GLFW_KEY_W)
+			lightIntensity += 0.1f;
+		if (key == GLFW_KEY_S)
+			lightIntensity = std::max(0.0f, lightIntensity - 0.1f);
+
+		if (key == GLFW_KEY_1)
+			currentPenguinTexture = 1;
+		if (key == GLFW_KEY_2)
+			currentPenguinTexture = 2;
+		
+		if (key == GLFW_KEY_3)
+			currentSnowTexture = 1;
+		if (key == GLFW_KEY_4)
+			currentSnowTexture = 2;
+
+		if (key == GLFW_KEY_LEFT)
+			penguinRotation += turnAngle;
+		if (key == GLFW_KEY_RIGHT)
+			penguinRotation -= turnAngle;
+		if (key == GLFW_KEY_UP) {
+			float rad = glm::radians(penguinRotation);
+			glm::vec3 forward;
+			forward.x = sin(rad);
+			forward.y = 0.0f;
+			forward.z = cos(rad);
+			penguinPos += moveSpeed * forward;
+		}
+
+		if (key == GLFW_KEY_DOWN) {
+			float rad = glm::radians(penguinRotation);
+			glm::vec3 forward;
+			forward.x = sin(rad);
+			forward.y = 0.0f;
+			forward.z = cos(rad);
+			penguinPos -= moveSpeed * forward;
+		}
+	}
 }
 
 
