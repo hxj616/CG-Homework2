@@ -1,13 +1,14 @@
 /*
 Student Information
-Student ID:
-Student Name:
+Student ID: 202201130304
+Student Name: 黄玺嘉
 */
 
 #include "Dependencies/glew/glew.h"
 #include "Dependencies/glfw/glfw3.h"
 #include "Dependencies/glm/glm.hpp"
 #include "Dependencies/glm/gtc/matrix_transform.hpp"
+#include "Dependencies/glm/gtc/type_ptr.hpp"
 
 #include "Shader.h"
 #include "Texture.h"
@@ -18,8 +19,8 @@ Student Name:
 #include <map>
 
 // screen setting
-const int SCR_WIDTH = 800;
-const int SCR_HEIGHT = 600;
+const int SCR_WIDTH = 2000;
+const int SCR_HEIGHT = 1500;
 
 // struct for storing the obj file
 struct Vertex {
@@ -144,6 +145,30 @@ Model loadOBJ(const char* objPath)
 	return model;
 }
 
+// 全局变量
+Model penguinModel, snowModel;
+unsigned int VAOpenguin, VBOpenguin, EBOpenguin;
+unsigned int VAOsnow, VBOsnow, EBOsnow;
+
+Shader myShader;
+Texture penguinTexture1, penguinTexture2, snowTexture1, snowTexture2;
+
+int currentPenguinTexture = 1;
+int currentSnowTexture = 1;
+
+float lightIntensity = 1.0f;
+
+glm::vec3 cameraPos = glm::vec3(0.0f, 3.0f, 8.0f);
+glm::vec3 cameraFront = glm::vec3(0.0f, -0.3f, -1.0f);
+glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+
+glm::vec3 penguinPos = glm::vec3(0.0f, 0.0f, 0.0f);
+float penguinRotation = 0.0f;
+
+bool firstMouse = true;
+float lastX = SCR_WIDTH / 2.0f, lastY = SCR_HEIGHT / 2.0f;
+float yaw = -90.0f, pitch = 0.0f;
+
 void get_OpenGL_info()
 {
 	// OpenGL information
@@ -160,6 +185,51 @@ void sendDataToOpenGL()
 	//TODO
 	//Load objects and bind to VAO and VBO
 	//Load textures
+	penguinModel = loadOBJ("./resources/penguin/penguin.obj");
+	snowModel = loadOBJ("./resources/snow/snow.obj");
+
+	glGenVertexArrays(1, &VAOpenguin);
+	glGenBuffers(1, &VBOpenguin);
+	glGenBuffers(1, &EBOpenguin);
+
+	glBindVertexArray(VAOpenguin);
+	glBindBuffer(GL_ARRAY_BUFFER, VBOpenguin);
+	glBufferData(GL_ARRAY_BUFFER, penguinModel.vertices.size() * sizeof(Vertex), &penguinModel.vertices[0], GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBOpenguin);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, penguinModel.indices.size() * sizeof(unsigned int), &penguinModel.indices[0], GL_STATIC_DRAW);
+
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+	glEnableVertexAttribArray(0);
+
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, uv));
+	glEnableVertexAttribArray(1);
+
+	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
+	glEnableVertexAttribArray(2);
+	glBindVertexArray(0);
+
+	glGenVertexArrays(1, &VAOsnow);
+	glGenBuffers(1, &VBOsnow);
+	glGenBuffers(1, &EBOsnow);
+
+	glBindVertexArray(VAOsnow);
+	glBindBuffer(GL_ARRAY_BUFFER, VBOsnow);
+	glBufferData(GL_ARRAY_BUFFER, snowModel.vertices.size() * sizeof(Vertex), &snowModel.vertices[0], GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBOsnow);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, snowModel.indices.size() * sizeof(unsigned int), &snowModel.indices[0], GL_STATIC_DRAW);	
+
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, uv));
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
+	glEnableVertexAttribArray(2);
+	glBindVertexArray(0);
+
+	penguinTexture1.setupTexture("./resources/penguin/penguin_01.png");
+	penguinTexture2.setupTexture("./resources/penguin/penguin_02.png");
+	snowTexture1.setupTexture("./resources/snow/snow_01.jpg");
+	snowTexture2.setupTexture("./resources/snow/snow_02.jpg");
 }
 
 void initializedGL(void) //run only once
@@ -173,6 +243,7 @@ void initializedGL(void) //run only once
 
 	//TODO: set up the camera parameters	
 	//TODO: set up the vertex shader and fragment shader
+	myShader.setupShader("VertexShaderCode.glsl", "FragmentShaderCode.glsl");
 
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
@@ -186,6 +257,54 @@ void paintGL(void)  //always run
 	//Set lighting information, such as position and color of lighting source
 	//Set transformation matrix
 	//Bind different textures
+	myShader.use();
+
+	glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+	glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+
+	myShader.setMat4("projection", projection);
+	myShader.setMat4("view", view);
+
+	glm::vec3 lightDir = glm::normalize(glm::vec3(-0.3f, -1.0f, -0.3f));
+	myShader.setVec3("lightDir", lightDir);
+	myShader.setVec3("lightColor", glm::vec3(1.0f, 1.0f, 1.0f));
+	myShader.setFloat("lightIntensity", lightIntensity);
+	myShader.setVec3("cameraPos", cameraPos);
+
+	glm::mat4 model = glm::mat4(1.0f);
+	model = glm::translate(model, penguinPos);
+	model = glm::rotate(model, glm::radians(penguinRotation), glm::vec3(0.0f, 1.0f, 0.0f));
+	model = glm::scale(model, glm::vec3(3.0f, 3.0f, 3.0f));
+	myShader.setMat4("model", model);
+
+	if (currentPenguinTexture == 1) {
+		penguinTexture1.bind(0);
+	}
+	else {
+		penguinTexture2.bind(0);
+	}
+	myShader.setInt("texture1", 0);
+
+	glBindVertexArray(VAOpenguin);
+	glDrawElements(GL_TRIANGLES, penguinModel.indices.size(), GL_UNSIGNED_INT, 0);
+	glBindVertexArray(0);
+
+	model = glm::mat4(1.0f);
+	model = glm::translate(model, glm::vec3(0.0f, -1.5f, 0.0f));
+	model = glm::scale(model, glm::vec3(1.0f, 0.2f, 1.0f));
+	myShader.setMat4("model", model);
+
+	if (currentSnowTexture == 1) {
+		snowTexture1.bind(0);
+	}
+	else {
+		snowTexture2.bind(0);
+	}
+	myShader.setInt("texture1", 0);
+
+	glBindVertexArray(VAOsnow);
+	glDrawElements(GL_TRIANGLES, snowModel.indices.size(), GL_UNSIGNED_INT, 0);
+	glBindVertexArray(0);
 }
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
