@@ -147,20 +147,23 @@ Model loadOBJ(const char* objPath)
 
 // 全局变量
 Model penguinModel, snowModel;
+Model sunModel;
 unsigned int VAOpenguin, VBOpenguin, EBOpenguin;
 unsigned int VAOsnow, VBOsnow, EBOsnow;
+unsigned int VAOsun, VBOsun, EBOsun;
 
 Shader myShader;
 Texture penguinTexture1, penguinTexture2, snowTexture1, snowTexture2;
+Texture sunTexture;
 
 int currentPenguinTexture = 2;
 int currentSnowTexture = 2;
 
 float lightIntensity = 1.0f;
 
-glm::vec3 cameraPos = glm::vec3(0.0f, 3.0f, 8.0f);
+glm::vec3 cameraPos = glm::vec3(0.0f, 4.0f, 8.0f);
 glm::vec3 cameraFront = glm::vec3(0.0f, -0.3f, -1.0f);
-glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+glm::vec3 cameraUp = glm::vec3(0.0f, 2.0f, 0.0f);
 
 glm::vec3 penguinPos = glm::vec3(0.0f, 0.0f, 0.0f);
 float penguinRotation = 0.0f;
@@ -187,6 +190,7 @@ void sendDataToOpenGL()
 	//Load textures
 	penguinModel = loadOBJ("./resources/penguin/penguin.obj");
 	snowModel = loadOBJ("./resources/snow/snow.obj");
+	sunModel = loadOBJ("./resources/sun/sun.obj");
 
 	glGenVertexArrays(1, &VAOpenguin);
 	glGenBuffers(1, &VBOpenguin);
@@ -226,10 +230,29 @@ void sendDataToOpenGL()
 	glEnableVertexAttribArray(2);
 	glBindVertexArray(0);
 
+	glGenVertexArrays(1, &VAOsun);
+	glGenBuffers(1, &VBOsun);
+	glGenBuffers(1, &EBOsun);
+
+	glBindVertexArray(VAOsun);
+	glBindBuffer(GL_ARRAY_BUFFER, VBOsun);
+	glBufferData(GL_ARRAY_BUFFER, sunModel.vertices.size() * sizeof(Vertex), &sunModel.vertices[0], GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBOsun);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sunModel.indices.size() * sizeof(unsigned int), &sunModel.indices[0], GL_STATIC_DRAW);
+
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, uv));
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
+	glEnableVertexAttribArray(2);
+	glBindVertexArray(0);
+
 	penguinTexture1.setupTexture("./resources/penguin/penguin_01.png");
 	penguinTexture2.setupTexture("./resources/penguin/penguin_02.png");
 	snowTexture1.setupTexture("./resources/snow/snow_01.jpg");
 	snowTexture2.setupTexture("./resources/snow/snow_02.jpg");
+	sunTexture.setupTexture("./resources/sun/sun.jpg");
 }
 
 void initializedGL(void) //run only once
@@ -304,6 +327,18 @@ void paintGL(void)  //always run
 
 	glBindVertexArray(VAOsnow);
 	glDrawElements(GL_TRIANGLES, snowModel.indices.size(), GL_UNSIGNED_INT, 0);
+	glBindVertexArray(0);
+
+	model = glm::mat4(1.0f);
+	model = glm::translate(model, glm::vec3(5.0f, 5.0f, -10.0f)); // 设置太阳位置
+	model = glm::scale(model, glm::vec3(1.0f)); // 设置太阳大小
+	myShader.setMat4("model", model);
+
+	sunTexture.bind(0);
+	myShader.setInt("texture1", 0);
+
+	glBindVertexArray(VAOsun);
+	glDrawElements(GL_TRIANGLES, sunModel.indices.size(), GL_UNSIGNED_INT, 0);
 	glBindVertexArray(0);
 }
 
