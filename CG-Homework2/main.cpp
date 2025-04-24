@@ -292,7 +292,7 @@ void paintGL(void)  //always run
 	myShader.setVec3("lightDir", lightDir);
 	myShader.setVec3("lightColor", glm::vec3(1.0f, 1.0f, 1.0f));
 	myShader.setFloat("lightIntensity", lightIntensity);
-	myShader.setVec3("cameraPos", cameraPos);
+	myShader.setVec3("viewPos", cameraPos);
 
 	glm::mat4 model = glm::mat4(1.0f);
 	model = glm::translate(model, penguinPos);
